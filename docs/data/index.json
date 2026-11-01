@@ -1,0 +1,9 @@
+{
+ "matches": [
+  {
+   "id": "demo",
+   "title": "Synthetic demo match",
+   "path": "demo/match.json"
+  }
+ ]
+}

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Match Sync Viewer</title>
+<meta name="description" content="Synchronised tactical-camera video, player tracking and event annotations for a football match.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>Match Sync Viewer</div>
+  <select id="matchSel" aria-label="Match"></select>
+  <span id="badge" class="badge" hidden>Synthetic demo data</span>
+  <div class="spacer"></div>
+  <div class="seg" id="viewSeg" role="group" aria-label="View">
+    <button data-view="video" type="button">Video</button>
+    <button data-view="split" type="button" class="on">Split</button>
+    <button data-view="tactical" type="button">Tactical</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage-col">
+    <div id="stage" class="stage" data-view="split">
+      <div class="pane vpane" id="vpane">
+        <video id="video" playsinline muted preload="auto"></video>
+        <div class="vmsg" id="vmsg" hidden></div>
+        <div class="banner" id="bannerV" hidden></div>
+        <div class="tag">Video</div>
+      </div>
+      <div class="pane tpane" id="tpane">
+        <canvas id="pitch"></canvas>
+        <div class="banner" id="bannerT" hidden></div>
+        <div class="tag">Tactical · <span id="trkInfo">tracking</span></div>
+      </div>
+    </div>
+
+    <div class="dock">
+    <div class="transport">
+      <div class="halves seg" id="halfSeg" role="group" aria-label="Half">
+        <button data-half="1" type="button" class="on">1st half</button>
+        <button data-half="2" type="button">2nd half</button>
+      </div>
+      <button id="prevEv" type="button" title="Previous filtered event (K)">⏮</button>
+      <button id="playBtn" type="button" class="primary" title="Play / pause (Space)">▶ Play</button>
+      <button id="nextEv" type="button" title="Next filtered event (J)">⏭</button>
+      <span class="time" id="timeLbl">1H 00:00.0</span>
+      <span class="frame" id="frameLbl">frame 0</span>
+      <div class="spacer"></div>
+      <label class="speed">Speed
+        <select id="speedSel">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+        </select>
+      </label>
+      <label class="chk"><input type="checkbox" id="trailChk"> Trails</label>
+    </div>
+
+    <canvas id="timeline" aria-label="Timeline with event markers" tabindex="0"></canvas>
+    </div>
+
+    <details class="sync" id="syncBox">
+      <summary>Sync calibration <span class="hint">(video ↔ tracking ↔ events)</span></summary>
+      <div class="sync-grid">
+        <div class="row">
+          <label for="vidOff">Video offset</label>
+          <input type="range" id="vidOff" min="-15" max="15" step="0.04" value="0">
+          <output id="vidOffOut">0.00 s</output>
+          <button type="button" data-nudge="vid" data-d="-0.04">−1f</button>
+          <button type="button" data-nudge="vid" data-d="0.04">+1f</button>
+        </div>
+        <p class="note">Seconds into the video at which tracking t = 0 occurs. If players on the pitch run <em>ahead</em> of the video, increase it.</p>
+        <div class="row">
+          <label for="evOff">Event offset</label>
+          <input type="range" id="evOff" min="-15" max="15" step="0.04" value="0">
+          <output id="evOffOut">0.00 s</output>
+          <button type="button" data-nudge="ev" data-d="-0.04">−1f</button>
+          <button type="button" data-nudge="ev" data-d="0.04">+1f</button>
+        </div>
+        <p class="note">Shifts every event of this half in time. Real halves run past the nominal 45 minutes, so 2nd-half events can drift by a few seconds.</p>
+        <div class="row end">
+          <button type="button" id="calCopy">Copy calibration</button>
+          <button type="button" id="calReset">Reset half</button>
+          <span id="calMsg" class="note"></span>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <div class="card-h"><h2>Event filters</h2>
+        <div class="mini"><button type="button" id="fAll">All</button><button type="button" id="fNone">None</button></div>
+      </div>
+      <div id="chips" class="chips"></div>
+      <div class="row wrap">
+        <div class="seg small" id="teamSeg" role="group" aria-label="Team side">
+          <button data-team="both" type="button" class="on">Both sides</button>
+          <button data-team="left" type="button">Left</button>
+          <button data-team="right" type="button">Right</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="visChk"> Clearly visible only</label>
+      </div>
+      <div class="row wrap clip">
+        <label class="chk"><input type="checkbox" id="clipChk"> Clip mode</label>
+        <label class="num">before <input type="number" id="preIn" min="0" max="30" step="0.5" value="3"> s</label>
+        <label class="num">after <input type="number" id="postIn" min="0" max="30" step="0.5" value="3"> s</label>
+      </div>
+      <p class="note" id="clipNote">Clip mode plays only the filtered events, skipping everything between them.</p>
+    </div>
+
+    <div class="card list-card">
+      <div class="card-h"><h2>Events <span id="evCount" class="count"></span></h2></div>
+      <div id="evList" class="evlist" role="list"></div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <p id="attrib"></p>
+  <p class="keys"><kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> ±5 s (<kbd>Shift</kbd> ±1 frame) · <kbd>J</kbd>/<kbd>K</kbd> next/previous event · <kbd>V</kbd> change view</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
